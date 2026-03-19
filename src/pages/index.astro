@@ -1,17 +1,358 @@
 ---
-
+import FrameAnimation from "../components/FrameAnimation.astro";
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="dark" />
+        <meta name="generator" content={Astro.generator} />
+        <title>Mela</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            html {
+                scroll-behavior: smooth;
+            }
+
+            body {
+                background: #0a0a0a;
+                color: #fff;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+                line-height: 1.5;
+                overflow-x: hidden;
+            }
+
+            /* Top bar */
+            .topbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                height: 64px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 2rem;
+                background: transparent;
+            }
+
+            .topbar-logo {
+                height: 28px;
+                width: auto;
+                flex-shrink: 0;
+            }
+
+            .topbar-nav {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            /* Shared pill button — liquid glass */
+            .pill-btn {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                font-size: 0.875rem;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+                white-space: nowrap;
+                border-radius: 100px;
+                padding: 0.45rem 1.1rem;
+                color: #fff;
+                cursor: pointer;
+
+                /* Glass surface: top reflection streak + orange tint */
+                background:
+                    linear-gradient(
+                        170deg,
+                        rgba(255, 255, 255, 0.28) 0%,
+                        rgba(255, 220, 180, 0.08) 38%,
+                        transparent 55%
+                    ),
+                    rgba(254, 127, 45, 0.18);
+
+                /* Frosted glass blur */
+                backdrop-filter: blur(18px) saturate(1.8) brightness(1.15);
+                -webkit-backdrop-filter: blur(18px) saturate(1.8)
+                    brightness(1.15);
+
+                border: 1px solid transparent;
+                background-clip: padding-box;
+
+                /* Depth: bright top inner edge, soft orange bottom, outer glow */
+                box-shadow:
+                    inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+                    inset 0 -1px 0 rgba(254, 127, 45, 0.25),
+                    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+                    inset -1px 0 0 rgba(255, 255, 255, 0.12),
+                    0 6px 28px rgba(254, 127, 45, 0.22),
+                    0 1px 0 rgba(255, 255, 255, 0.06);
+
+                overflow: hidden;
+                transition:
+                    box-shadow 0.2s ease,
+                    background 0.2s ease;
+            }
+
+            .pill-btn:hover {
+                background:
+                    linear-gradient(
+                        170deg,
+                        rgba(255, 255, 255, 0.38) 0%,
+                        rgba(255, 220, 180, 0.12) 38%,
+                        transparent 55%
+                    ),
+                    rgba(88.6, 34.5, 13.3);
+                box-shadow:
+                    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+                    inset 0 -1px 0 rgba(254, 127, 45, 0.3),
+                    inset 1px 0 0 rgba(255, 255, 255, 0.18),
+                    inset -1px 0 0 rgba(255, 255, 255, 0.18),
+                    0 8px 36px rgba(254, 127, 45, 0.35),
+                    0 1px 0 rgba(255, 255, 255, 0.08);
+            }
+
+            /* Gradient glass rim — bright at top/corners, orange at bottom */
+            .pill-btn::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 100px;
+                padding: 1px;
+                background: linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, 0.85) 0%,
+                    rgba(255, 210, 160, 0.5) 18%,
+                    rgba(254, 127, 45, 0.15) 45%,
+                    rgba(254, 127, 45, 0.15) 55%,
+                    rgba(255, 190, 130, 0.4) 80%,
+                    rgba(255, 255, 255, 0.6) 100%
+                );
+                -webkit-mask:
+                    linear-gradient(#fff 0 0) content-box,
+                    linear-gradient(#fff 0 0);
+                -webkit-mask-composite: xor;
+                mask-composite: exclude;
+                pointer-events: none;
+            }
+
+            /* Cursor proximity radial glow */
+            .pill-btn::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 100px;
+                background: radial-gradient(
+                    circle 70px at var(--rx, 50%) var(--ry, 50%),
+                    rgba(255, 210, 160, 0.5) 0%,
+                    transparent 100%
+                );
+                opacity: var(--glow, 0);
+                transition: opacity 0.15s ease;
+                pointer-events: none;
+            }
+
+            .topbar-cta {
+                flex-shrink: 0;
+            }
+
+            /* Hero */
+            .hero-scroll-container {
+                height: 250vh;
+                position: relative;
+            }
+
+            .hero {
+                position: sticky;
+                top: 0;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                background:
+                    radial-gradient(
+                        ellipse 80% 60% at 50% 60%,
+                        rgba(254, 127, 45, 0.45) 0%,
+                        transparent 70%
+                    ),
+                    #0a0a0a;
+            }
+
+            .hero-title {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: clamp(4rem, 13vw, 12rem);
+                font-weight: 800;
+                letter-spacing: -0.04em;
+                line-height: 1;
+                text-align: center;
+                color: #ffffff;
+                /* Behind image (z-index 1), above background (z-index 0) */
+                z-index: 1;
+                padding: 0 2rem;
+                pointer-events: none;
+                user-select: none;
+            }
+
+            .hero-figure {
+                width: 70%;
+                max-width: 900px;
+                height: 100%;
+                object-fit: contain;
+                object-position: center bottom;
+                transform-origin: 50% 66%;
+                will-change: transform;
+            }
+
+            .hero-overlay {
+                position: absolute;
+                inset: 0;
+                background: #0a0a0a;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            /* Placeholder sections */
+            .section {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4rem 2rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
+
+            .section-inner {
+                max-width: 720px;
+                width: 100%;
+                text-align: center;
+            }
+
+            .section-inner h2 {
+                font-size: clamp(1.5rem, 4vw, 2.5rem);
+                font-weight: 600;
+                letter-spacing: -0.01em;
+            }
+
+            .section-inner p {
+                margin-top: 1rem;
+                color: rgba(255, 255, 255, 0.45);
+                font-size: 1.0625rem;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Top bar -->
+        <header class="topbar">
+            <img src="/TFS_Logo.svg" alt="TFS Logo" class="topbar-logo" />
+            <nav class="topbar-nav">
+                <a href="#" class="pill-btn">Features</a>
+                <a href="#" class="pill-btn">About</a>
+                <a href="#" class="pill-btn">Contact</a>
+            </nav>
+            <a href="#" class="pill-btn topbar-cta">Get Started</a>
+        </header>
+
+        <!-- Hero -->
+        <div class="hero-scroll-container">
+            <section class="hero" id="hero">
+                <div class="hero-title">The Future<br />Studio</div>
+                <img
+                    src="/heroImage.png"
+                    alt=""
+                    class="hero-figure"
+                    id="hero-figure"
+                    style="position: relative; z-index: 2;"
+                />
+                <div class="hero-overlay" id="hero-overlay" style="z-index: 3;">
+                </div>
+            </section>
+        </div>
+
+        <!-- Scroll-controlled frame animation -->
+        <FrameAnimation />
+        <!-- Placeholder sections below -->
+        <section class="hero">
+            <h1>Mela</h1>
+            <p>Scroll to explore.</p>
+        </section>
+        <section class="hero">
+            <h1>Mela</h1>
+            <p>Scroll to explore.</p>
+        </section>
+        <script>
+            // Cursor proximity glow for pill buttons
+            const pillBtns =
+                document.querySelectorAll<HTMLElement>(".pill-btn");
+            const PROXIMITY = 120; // px — glow starts fading in at this distance
+
+            window.addEventListener("mousemove", (e) => {
+                pillBtns.forEach((btn) => {
+                    const rect = btn.getBoundingClientRect();
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
+                    const dx = e.clientX - cx;
+                    const dy = e.clientY - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Position of cursor relative to button (for the radial center)
+                    const rx = ((e.clientX - rect.left) / rect.width) * 100;
+                    const ry = ((e.clientY - rect.top) / rect.height) * 100;
+
+                    const glow = Math.max(0, 1 - dist / PROXIMITY);
+                    btn.style.setProperty("--rx", `${rx}%`);
+                    btn.style.setProperty("--ry", `${ry}%`);
+                    btn.style.setProperty("--glow", `${glow}`);
+                });
+            });
+        </script>
+
+        <script>
+            import { gsap } from "gsap";
+            import { ScrollTrigger } from "gsap/ScrollTrigger";
+            gsap.registerPlugin(ScrollTrigger);
+
+            const figure = document.getElementById("hero-figure");
+            const overlay = document.getElementById("hero-overlay");
+
+            const tl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: ".hero-scroll-container",
+                    start: "top top",
+                    end: "bottom bottom",
+                    scrub: true,
+                },
+            });
+
+            tl.to(figure, { scale: 10, ease: "none" }, 0).to(
+                overlay,
+                { opacity: 1, ease: "none" },
+                0,
+            );
+        </script>
+    </body>
 </html>

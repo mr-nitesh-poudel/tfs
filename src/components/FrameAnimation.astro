@@ -1,0 +1,160 @@
+---
+const TOTAL_FRAMES = 120;
+const FRAME_BASE = '/frames/Shot_1_Webp/Shots.';
+const FRAME_SUFFIX = '_result.webp';
+---
+
+<section
+  id="animation-section"
+  data-frames={TOTAL_FRAMES}
+  data-base={FRAME_BASE}
+  data-suffix={FRAME_SUFFIX}
+>
+  <div id="animation-scroll-container">
+    <div id="animation-sticky">
+      <canvas id="animation-canvas"></canvas>
+      <div id="animation-loader">
+        <div id="loader-bar-wrap"><div id="loader-bar"></div></div>
+        <p id="loader-text">Loading…</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  #animation-section {
+    width: 100%;
+  }
+
+  #animation-scroll-container {
+    height: 600vh;
+    position: relative;
+  }
+
+  #animation-sticky {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #0a0a0a;
+  }
+
+  #animation-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  #animation-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: #0a0a0a;
+    transition: opacity 0.4s ease;
+  }
+
+  #loader-bar-wrap {
+    width: 200px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #loader-bar {
+    height: 100%;
+    width: 0%;
+    background: #fff;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+  }
+
+  #loader-text {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  // --- Read config from data attributes ---
+  const section = document.getElementById('animation-section')!;
+  const TOTAL_FRAMES = Number(section.dataset.frames);
+  const FRAME_BASE = section.dataset.base!;
+  const FRAME_SUFFIX = section.dataset.suffix!;
+
+  // --- Canvas setup ---
+  const canvas = document.getElementById('animation-canvas') as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+  const loader = document.getElementById('animation-loader')!;
+  const loaderBar = document.getElementById('loader-bar')!;
+
+  // Size canvas to display pixels (not image natural size)
+  const DPR = window.devicePixelRatio || 1;
+  canvas.width = Math.round(canvas.offsetWidth * DPR);
+  canvas.height = Math.round(canvas.offsetHeight * DPR);
+
+  const bitmaps: ImageBitmap[] = new Array(TOTAL_FRAMES);
+  let loadedCount = 0;
+  let lastFrame = -1;
+
+  function framePath(i: number) {
+    return `${FRAME_BASE}${String(i).padStart(4, '0')}${FRAME_SUFFIX}`;
+  }
+
+  function drawFrame(index: number) {
+    const bmp = bitmaps[index];
+    if (!bmp) return;
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  }
+
+  function initScrollTrigger() {
+    drawFrame(0);
+
+    ScrollTrigger.create({
+      trigger: '#animation-scroll-container',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: true,
+      onUpdate(self) {
+        const frame = Math.min(TOTAL_FRAMES - 1, Math.floor(self.progress * TOTAL_FRAMES));
+        if (frame !== lastFrame) {
+          lastFrame = frame;
+          drawFrame(frame);
+        }
+      },
+    });
+  }
+
+  // Load images then convert to ImageBitmap (GPU-resident, fast to draw)
+  for (let i = 0; i < TOTAL_FRAMES; i++) {
+    const img = new Image();
+    img.onload = () => {
+      createImageBitmap(img).then((bmp) => {
+        bitmaps[i] = bmp;
+        loadedCount++;
+        loaderBar.style.width = `${(loadedCount / TOTAL_FRAMES) * 100}%`;
+        if (loadedCount === TOTAL_FRAMES) {
+          loader.style.opacity = '0';
+          setTimeout(() => { loader.style.display = 'none'; }, 400);
+          initScrollTrigger();
+        }
+      });
+    };
+    img.onerror = () => { loadedCount++; };
+    img.src = framePath(i);
+  }
+</script>
