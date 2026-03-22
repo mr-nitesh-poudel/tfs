@@ -20,12 +20,8 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                 padding: 0;
             }
 
-            html {
-                scroll-behavior: smooth;
-            }
-
             body {
-                background: #0a0a0a;
+                background: #000;
                 color: #fff;
                 font-family:
                     system-ui,
@@ -33,6 +29,16 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                     sans-serif;
                 line-height: 1.5;
                 overflow-x: hidden;
+            }
+
+            /* ScrollSmoother wrapper — must be position:fixed + overflow:hidden */
+            #smooth-wrapper {
+                overflow: hidden;
+                position: fixed;
+                height: 100%;
+                width: 100%;
+                top: 0;
+                left: 0;
             }
 
             /* Top bar */
@@ -189,14 +195,13 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                overflow: hidden;
                 background:
                     radial-gradient(
                         ellipse 80% 60% at 50% 60%,
                         rgba(254, 127, 45, 0.45) 0%,
                         transparent 70%
                     ),
-                    #0a0a0a;
+                    #000;
             }
 
             .hero-title {
@@ -224,14 +229,13 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                 height: 100%;
                 object-fit: contain;
                 object-position: center bottom;
-                transform-origin: 50% 66%;
                 will-change: transform;
             }
 
             .hero-overlay {
                 position: absolute;
                 inset: 0;
-                background: #0a0a0a;
+                background: #000000;
                 opacity: 0;
                 pointer-events: none;
             }
@@ -266,7 +270,7 @@ import FrameAnimation from "../components/FrameAnimation.astro";
         </style>
     </head>
     <body>
-        <!-- Top bar -->
+        <!-- Top bar sits outside smooth-wrapper so it's unaffected by the scroll offset -->
         <header class="topbar">
             <img src="/TFS_Logo.svg" alt="TFS Logo" class="topbar-logo" />
             <nav class="topbar-nav">
@@ -277,38 +281,39 @@ import FrameAnimation from "../components/FrameAnimation.astro";
             <a href="#" class="pill-btn topbar-cta">Get Started</a>
         </header>
 
-        <!-- Hero -->
-        <div class="hero-scroll-container">
-            <section class="hero" id="hero">
-                <div class="hero-title">The Future<br />Studio</div>
-                <img
-                    src="/heroImage.png"
-                    alt=""
-                    class="hero-figure"
-                    id="hero-figure"
-                    style="position: relative; z-index: 2;"
-                />
-                <div class="hero-overlay" id="hero-overlay" style="z-index: 3;">
+        <!-- ScrollSmoother requires this exact wrapper > content structure -->
+        <div id="smooth-wrapper">
+            <div id="smooth-content">
+                <!-- Hero -->
+                <div class="hero-scroll-container">
+                    <section class="hero" id="hero">
+                        <div class="hero-title">The Future<br />Studio</div>
+                        <img
+                            src="/heroImage.png"
+                            alt=""
+                            class="hero-figure"
+                            id="hero-figure"
+                            style="position: relative; z-index: 2;"
+                        />
+                        <div
+                            class="hero-overlay"
+                            id="hero-overlay"
+                            style="z-index: 3;"
+                        >
+                        </div>
+                    </section>
                 </div>
-            </section>
+
+                <!-- Scroll-controlled frame animation -->
+                <FrameAnimation />
+            </div>
         </div>
 
-        <!-- Scroll-controlled frame animation -->
-        <FrameAnimation />
-        <!-- Placeholder sections below -->
-        <section class="hero">
-            <h1>Mela</h1>
-            <p>Scroll to explore.</p>
-        </section>
-        <section class="hero">
-            <h1>Mela</h1>
-            <p>Scroll to explore.</p>
-        </section>
         <script>
             // Cursor proximity glow for pill buttons
             const pillBtns =
                 document.querySelectorAll<HTMLElement>(".pill-btn");
-            const PROXIMITY = 120; // px — glow starts fading in at this distance
+            const PROXIMITY = 120;
 
             window.addEventListener("mousemove", (e) => {
                 pillBtns.forEach((btn) => {
@@ -319,7 +324,6 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                     const dy = e.clientY - cy;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    // Position of cursor relative to button (for the radial center)
                     const rx = ((e.clientX - rect.left) / rect.width) * 100;
                     const ry = ((e.clientY - rect.top) / rect.height) * 100;
 
@@ -334,10 +338,60 @@ import FrameAnimation from "../components/FrameAnimation.astro";
         <script>
             import { gsap } from "gsap";
             import { ScrollTrigger } from "gsap/ScrollTrigger";
-            gsap.registerPlugin(ScrollTrigger);
+            import { ScrollSmoother } from "gsap/ScrollSmoother";
 
-            const figure = document.getElementById("hero-figure");
+            gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+
+            // ScrollSmoother MUST be created before any ScrollTrigger.create() calls
+            ScrollSmoother.create({
+                wrapper: "#smooth-wrapper",
+                content: "#smooth-content",
+                smooth: 1,
+                effects: true,
+                smoothTouch: 0.1,
+            });
+
+            const figure = document.getElementById(
+                "hero-figure",
+            ) as HTMLImageElement;
             const overlay = document.getElementById("hero-overlay");
+
+            // ── Zoom focal point ──────────────────────────────────────────
+            // Values are 0–1, relative to the image's own dimensions.
+            // 0 = left / top edge,  1 = right / bottom edge,  0.5 = centre.
+            const ZOOM_FOCAL_X = 0.5; // horizontal
+            const ZOOM_FOCAL_Y = 0.15; // vertical
+            // ─────────────────────────────────────────────────────────────
+
+            function updateTransformOrigin() {
+                const elW = figure.offsetWidth;
+                const elH = figure.offsetHeight;
+                const natW = figure.naturalWidth;
+                const natH = figure.naturalHeight;
+                if (!natW || !natH) return;
+
+                // Replicate object-fit:contain + object-position:center bottom
+                const scale = Math.min(elW / natW, elH / natH);
+                const imgW = natW * scale;
+                const imgH = natH * scale;
+                const xOff = (elW - imgW) / 2; // centred horizontally
+                const yOff = elH - imgH; // bottom-aligned
+
+                // Map focal fraction → pixel inside element → percentage
+                const originX = ((xOff + imgW * ZOOM_FOCAL_X) / elW) * 100;
+                const originY = ((yOff + imgH * ZOOM_FOCAL_Y) / elH) * 100;
+
+                gsap.set(figure, {
+                    transformOrigin: `${originX}% ${originY}%`,
+                });
+            }
+
+            if (figure.complete) {
+                updateTransformOrigin();
+            } else {
+                figure.addEventListener("load", updateTransformOrigin);
+            }
+            window.addEventListener("resize", updateTransformOrigin);
 
             const tl = gsap.timeline({
                 scrollTrigger: {
@@ -348,7 +402,7 @@ import FrameAnimation from "../components/FrameAnimation.astro";
                 },
             });
 
-            tl.to(figure, { scale: 10, ease: "none" }, 0).to(
+            tl.to(figure, { scale: 12, ease: "none" }, 0).to(
                 overlay,
                 { opacity: 1, ease: "none" },
                 0,
